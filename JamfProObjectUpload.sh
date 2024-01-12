@@ -3,30 +3,34 @@
 #### #### #### #### #### #### #### #### #### #### 
 # default values
 #### #### #### #### #### #### #### #### #### #### 
-scriptname=$(basename "$0")
+declare scriptname=$(basename "$0")
 declare client_id
 declare client_secret
 declare servername
 declare token
 declare read_only_mode
-declare -a policy_list
 
 #### #### #### #### #### #### #### #### #### #### 
 # functions
 #### #### #### #### #### #### #### #### #### #### 
 function usage {
+	local error_message="$1"
+	if [ -n "${error_message}" ]; then
+		echo "${error_message}" 1>&2
+		echo ""
+	fi
 	echo "Usage"
-	echo "\t${scriptname} [-r] [-u client_id] [-s servername] [[-p policy_file]...]"
+	echo "    ${scriptname} [-r] [-u client_id] [-s servername] [[-p policy_file]...]"
 	echo ""
 	echo "Options"
-	echo "\t-p policy_file" 
-	echo "\t\tAdd an XML file to the list of policy files to upload. Multiple -p options can be processed."
-	echo "\t-s servername"
-	echo "\t\tSpecify the server name (URL) of the Jamf Pro server"
-	echo "\t-u client_id"
-	echo "\t\tSpecify the client_id for the Jamf Pro server API"
-	echo "\t-r"
-	echo "\t\tRun the script in read only mode"
+	echo "    -p policy_file" 
+	echo "        Add an XML file to the list of policy files to upload. Multiple -p options can be processed."
+	echo "    -s servername"
+	echo "        Specify the server name (URL) of the Jamf Pro server"
+	echo "    -u client_id"
+	echo "        Specify the client_id for the Jamf Pro server API"
+	echo "    -r"
+	echo "        Run the script in read only mode"
 	exit 1
 }
 
@@ -36,6 +40,14 @@ function ScriptLogging {
 ## Developed by Rich Trouton https://github.com/rtrouton
     local LogStamp=$(date +%Y-%m-%d\ %H:%M:%S)    
     echo "$LogStamp [$scriptname]:" " $1"
+}
+
+#### #### #### #### #### #### #### #### #### #### 
+function exit_with_error {
+	local error_message="$1"
+	ScriptLogging "[ERROR] ${error_message}"
+	echo "${error_message}" 1>&2
+	exit 1
 }
 
 #### #### #### #### #### #### #### #### #### #### 
@@ -68,45 +80,106 @@ function requestToken {
         --data-urlencode "client_id=${client_id}" \
         --data-urlencode "client_secret=${client_secret}"); then
 		ScriptLogging "Connection error. Exiting."
-		echo "Unable to connect to server"
 		echo "Detail: ${webdata}"
-		exit 1
+		exit_with_error "Unable to connect to server. See detail above."
     fi
 	if ! token=$(printf "%s" "${webdata}" | /usr/bin/plutil -extract "access_token" raw -o - -); then
 		ScriptLogging "Token data error. Exiting."
-		echo "Unable to extract token data"
 		echo "Server response: ${webdata}"
-		exit 1
+		exit_with_error "Unable to extract token data"
 	fi
 	if ! checkToken; then 
 		ScriptLogging "Token validation error. Exiting."
-		echo "Unable to get token data"
 		echo "Server response: ${webdata}"
-		exit 1
+		exit_with_error "Unable to get token data"
 	fi
 	ScriptLogging "Bearer Token: $token"
 }
 
 #### #### #### #### #### #### #### #### #### #### 
-function uploadPolicy {
-	ScriptLogging "Uploading policy $1 to Jamf Pro server"
+function uploadFile {
+	local request_method="$1"
+	local server_path="$2"
+	local filename="$3"
+	ScriptLogging "Uploading file $filename to Jamf Pro server"
+	ScriptLogging "Checking for file"
+	if ! [ -r "$filename" ]; then
+		exit_with_error "Error! Cannot read file $filename"
+	fi
+	ScriptLogging "TODO: Decide how to handle existing"
+	ScriptLogging "For now, all are treated as new"
+	ScriptLogging "If we change, request_method should be PUT and jamf_id should be the policy"
+	if ! local server_response=$(/usr/bin/curl -i \
+		--request "${request_method}" \
+		--header "Authorization: Bearer ${token}" \
+		--header "Content-Type: application/xml" \
+		--data-ascii @"$filename" \
+		"${servername}${server_path}"); then
+		echo "Detail: ${webdata}"
+		exit_with_error "Unable to connect to server"
+	fi
+	ScriptLogging "Checking the response status"
+	local response_status=$(echo "$server_response" | head -n 1 | cut -d$' ' -f2)
+	ScriptLogging "Status: $response_status"
+	if [ "$response_status" -lt 200 ] || [ "$response_status" -gt 299 ]; then
+		echo "$server_response"	
+		exit_with_error "Error! The Jamf server returned an error! See above for details."
+	fi 
 }
 
 #### #### #### #### #### #### #### #### #### #### 
-function processPolicies {
-	ScriptLogging "Processing policies"
-	for policy_file in "${policy_list[@]}"; do
-		ScriptLogging "Policy: $policy_file"
-		ScriptLogging "Checking file extension"
-		if [[ $(basename "$policy_file" .xml) == $(basename "$policy_file") ]]; then
-			echo ""
-			echo "WARNING!!!! ${policy_file} does not have the .xml extension. Attempting to continue anyway."
-			echo "This program requires XML files to upload to the server."
-			echo ""
-		fi
-		if [ "$read_only_mode" = true ]; then continue; fi
-		uploadPolicy $policy_file
-	done
+function uploadNewAccount {
+	# /accounts/groupid/{id}
+	local filename="$1"
+	ScriptLogging "Uploading account $filename to Jamf Pro server"
+	uploadFile "POST" "/JSSResource/accounts/userid/0" "$filename"
+	ScriptLogging "Account $filename successfully uploaded"
+}
+
+#### #### #### #### #### #### #### #### #### #### 
+function uploadNewCategory {
+	local filename="$1"
+	ScriptLogging "Uploading category $filename to Jamf Pro server"
+	uploadFile "POST" "/JSSResource/categories/id/0" "$filename"
+	ScriptLogging "Category $filename successfully uploaded"
+}
+
+#### #### #### #### #### #### #### #### #### #### 
+function uploadNewPolicy {
+	local filename="$1"
+	ScriptLogging "Uploading policy $filename to Jamf Pro server"
+	uploadFile "POST" "/JSSResource/policies/id/0" "$filename"
+	ScriptLogging "Policy $filename successfully uploaded"
+}
+
+#### #### #### #### #### #### #### #### #### #### 
+function processFile {
+	local filename="$1"
+	ScriptLogging "Processing file $filename"
+	ScriptLogging "Checking file extension"
+	if [[ $(basename "$filename" .xml) == $(basename "$filename") ]]; then
+		echo ""
+		echo "WARNING!!!! ${filename} does not have the .xml extension. Attempting to continue anyway."
+		echo "This program requires XML files to upload to the server."
+		echo ""
+	fi
+	if [ "$read_only_mode" = true ]; then continue; fi
+	ScriptLogging "Checking for valid XML"
+	if ! xml=$(/usr/bin/xmllint "$filename" 2> /dev/null); then
+		exit_with_error "Error! Invalid XML file data."
+	fi	
+	ScriptLogging "Attempting to determine Jamf data type"
+	# find the first line in the XML (without the <xml version... line)
+	if ! data_type=$(grep -v '<\?xml version' -m1 <<< "${xml}"); then
+		exit_with_error "Unknown error in reading XML data for ${filename}"
+	fi
+	ScriptLogging "Checking $data_type for valid data type"
+	case "${data_type}" in
+		"<account>") uploadNewAccount "${filename}";;
+		"<category>") uploadNewCategory "${filename}";;
+		"<policy>") uploadNewPolicy "${filen ame}";;
+		*) exit_with_error "Unsupported data type $data_type";;
+	esac
 }
 
 #### #### #### #### #### #### #### #### #### #### 
@@ -116,17 +189,23 @@ ScriptLogging "Starting..."
 echo "JamfProObjectUpload.sh"
 
 ## Handle Command Line Options
-while getopts "s:u:p:rh" flag
+while getopts ":hrs:u:" flag
 do
 	case "${flag}" in
 		h) usage;;
-		p) policy_list+=("${OPTARG}");;
 		r) read_only_mode=true;;
 		s) servername="${OPTARG}";;
 		u) client_id="${OPTARG}";;
-		*) usage;;
+		:) usage "-${OPTARG} requires an argument.";;
+		?) usage;;
 	esac
 done
+## Remove the options from the parameter list
+shift $((OPTIND-1))
+
+if [ "$#" -eq 0 ]; then
+	usage "Specify one or more files to process."
+fi
 
 ScriptLogging "Checking for server name"
 while [ -z "${servername}" ]; do
@@ -144,9 +223,11 @@ while [ -z "${client_secret}" ]; do
 	echo ""
 done
 
-# requestToken
+requestToken
 
-processPolicies
-
+for file in "$@"; do
+	processFile "$file"
+done
 
 ScriptLogging "Exiting..."
+exit 0
