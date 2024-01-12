@@ -1,7 +1,9 @@
 # JamfProObjectUpload
 Script to upload XML data from backed up objects to a Jamf Pro server.
 
-Written to upload the data obtained from JamfProObjectBackup  found on Tom Rice's [GitHub Repo](https://github.com/trice81384/JAMF), but could be used with any Jamf Pro valid XML data.
+Written to upload the data obtained from JamfProObjectBackup  found on Tom Rice's [GitHub Repo](https://github.com/trice81384/JAMF), but could be used with any Jamf Pro valid XML data. 
+
+Tom Rice presented his backup script in his 2023 Jamf Nation User Conference presentation [Back to the Future: Backing up All (most) of the Objects in Jamf Pro](https://youtu.be/h-03QKwHyog?si=eue0BNv33LrCuYIA).
 
 ## Usage
 
