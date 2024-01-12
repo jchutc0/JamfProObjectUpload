@@ -128,28 +128,13 @@ function uploadFile {
 }
 
 #### #### #### #### #### #### #### #### #### #### 
-function uploadNewAccount {
-	# /accounts/groupid/{id}
+function uploadNewFile {
 	local filename="$1"
-	ScriptLogging "Uploading account $filename to Jamf Pro server"
-	uploadFile "POST" "/JSSResource/accounts/userid/0" "$filename"
-	ScriptLogging "Account $filename successfully uploaded"
-}
-
-#### #### #### #### #### #### #### #### #### #### 
-function uploadNewCategory {
-	local filename="$1"
-	ScriptLogging "Uploading category $filename to Jamf Pro server"
-	uploadFile "POST" "/JSSResource/categories/id/0" "$filename"
-	ScriptLogging "Category $filename successfully uploaded"
-}
-
-#### #### #### #### #### #### #### #### #### #### 
-function uploadNewPolicy {
-	local filename="$1"
-	ScriptLogging "Uploading policy $filename to Jamf Pro server"
-	uploadFile "POST" "/JSSResource/policies/id/0" "$filename"
-	ScriptLogging "Policy $filename successfully uploaded"
+	local jamf_type="$2"
+	local url_path="$3"
+	ScriptLogging "Uploading $jamf_type $filename to Jamf Pro server"
+	uploadFile "POST" "/JSSResource${url_path}" "${filename}"
+	ScriptLogging "Success: $jamf_type $filename upload"
 }
 
 #### #### #### #### #### #### #### #### #### #### 
@@ -175,9 +160,29 @@ function processFile {
 	fi
 	ScriptLogging "Checking $data_type for valid data type"
 	case "${data_type}" in
-		"<account>") uploadNewAccount "${filename}";;
-		"<category>") uploadNewCategory "${filename}";;
-		"<policy>") uploadNewPolicy "${filen ame}";;
+		"<account>") 
+			uploadNewFile "${filename}" "user account" "/accounts/userid/0";;
+		"<advanced_computer_search>")
+			uploadNewFile "${filename}" "advanced computer search" "/advancedcomputersearches/id/0";;
+		"<category>")
+			uploadNewFile "${filename}" "category" "/categories/id/0";;
+		"<computer_extension_attribute>")
+			uploadNewFile "${filename}" "computer extension attribute" "/computerextensionattributes/id/0";;
+		"<computer_group>")
+			uploadNewFile "${filename}" "account goup" "/computergroups/id/0";;
+		"<department>")
+			uploadNewFile "${filename}" "department" "/departments/id/0";;
+		"<group>")
+			uploadNewFile "${filename}" "account goup" "/accounts/groupid/0";;
+		"<os_x_configuration_profile>")
+			uploadNewFile "${filename}" "configuration profile" "/osxconfigurationprofiles/id/0";;
+		"<policy>")
+			uploadNewFile "${filename}" "policy" "/policies/id/0";;
+		"<restricted_software>")
+			uploadNewFile "${filename}" "restricted software" "/restrictedsoftware/id/0";;
+		"<script>")
+			uploadNewFile "${filename}" "script" "/scripts/id/0";;
+			
 		*) exit_with_error "Unsupported data type $data_type";;
 	esac
 }
@@ -189,10 +194,11 @@ ScriptLogging "Starting..."
 echo "JamfProObjectUpload.sh"
 
 ## Handle Command Line Options
-while getopts ":hrs:u:" flag
+while getopts ":hp:rs:u:" flag
 do
 	case "${flag}" in
 		h) usage;;
+		p) client_secret="${OPTARG}";;
 		r) read_only_mode=true;;
 		s) servername="${OPTARG}";;
 		u) client_id="${OPTARG}";;
@@ -201,6 +207,7 @@ do
 	esac
 done
 ## Remove the options from the parameter list
+echo "$@"
 shift $((OPTIND-1))
 
 if [ "$#" -eq 0 ]; then
