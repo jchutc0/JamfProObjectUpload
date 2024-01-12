@@ -1,5 +1,21 @@
 # JamfProObjectUpload
 Uploader for backed up object to Jamf Pro server
 
-A command to test: 
-`./JamfProObjectUpload.sh -s "https://draugr.sl.uky.edu:8443" -u "facb5db2-9e61-4113-893a-b7f3811e6050" -p "yourmom" -p "yourdad.xml"`
+Written to upload the data obtained from JamfProObjectBackup  found on Tom Rice's [GitHub Repo](https://github.com/trice81384/JAMF), but could be used with any Jamf Pro valid XML data.
+
+Usage
+    `JamfProObjectUpload.sh [-r] [-s <server name>] [-u <client id>] [-p <client secret>] <file name>...`
+
+Uploads one or more files to a Jamf Pro server through its API. Supports multiple files and wildcards.
+
+Uses API keys which can be set up through the Jamf Pro server (curently under Settings -> System -> API Roles and Clients). The role assigned to the API client ID must have access to to the proper operation or else the Jamf Pro server will send an error. If the server name and/or credentials are not specified, the script will prompt for them.
+
+Options
+    `-r`
+        Run the script in read only mode (no changes to the server)
+    `-s <server name>`
+        Specify the server name (URL) of the Jamf Pro server
+    `-u <client id>`
+        Specify the client ID for the Jamf Pro server API
+    `-p <client secret>`
+        Specify the client secret for the Jamf Pro server API

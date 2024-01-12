@@ -13,28 +13,6 @@ declare read_only_mode
 #### #### #### #### #### #### #### #### #### #### 
 # functions
 #### #### #### #### #### #### #### #### #### #### 
-function usage {
-	local error_message="$1"
-	if [ -n "${error_message}" ]; then
-		echo "${error_message}" 1>&2
-		echo ""
-	fi
-	echo "Usage"
-	echo "    ${scriptname} [-r] [-u client_id] [-s servername] [[-p policy_file]...]"
-	echo ""
-	echo "Options"
-	echo "    -p policy_file" 
-	echo "        Add an XML file to the list of policy files to upload. Multiple -p options can be processed."
-	echo "    -s servername"
-	echo "        Specify the server name (URL) of the Jamf Pro server"
-	echo "    -u client_id"
-	echo "        Specify the client_id for the Jamf Pro server API"
-	echo "    -r"
-	echo "        Run the script in read only mode"
-	exit 1
-}
-
-#### #### #### #### #### #### #### #### #### #### 
 function ScriptLogging {
 ## Function to provide logging of the script's actions either to the console or the log file specified.
 ## Developed by Rich Trouton https://github.com/rtrouton
@@ -188,6 +166,33 @@ function processFile {
 }
 
 #### #### #### #### #### #### #### #### #### #### 
+function usage {
+	local error_message="$1"
+	if [ -n "${error_message}" ]; then
+		echo "${error_message}" 1>&2
+		echo ""
+	fi
+	echo "Usage"
+	echo "    ${scriptname} [-r] [-s <server name>] [-u <client id>] [-p <client secret>] <file name>..."
+	echo ""
+	echo "Uploads one or more files to a Jamf Pro server through its API. Supports multiple files and wildcards."
+	echo ""
+	echo "Uses API keys which can be set up through the Jamf Pro server (curently under Settings -> System -> API Roles and Clients). The role assigned to the API client ID must have access to to the proper operation or else the Jamf Pro server will send an error. If the server name and/or credentials are not specified, the script will prompt for them."
+	echo ""
+	echo "Options"
+	echo "    -r"
+	echo "        Run the script in read only mode (no changes to the server)"
+	echo "    -s <server name>"
+	echo "        Specify the server name (URL) of the Jamf Pro server"
+	echo "    -u <client id>"
+	echo "        Specify the client ID for the Jamf Pro server API"
+	echo "    -p <client secret>"
+	echo "        Specify the client secret for the Jamf Pro server API"
+	
+	exit 1
+}
+
+#### #### #### #### #### #### #### #### #### #### 
 # main
 #### #### #### #### #### #### #### #### #### #### 
 ScriptLogging "Starting..."
@@ -216,7 +221,7 @@ fi
 
 ScriptLogging "Checking for server name"
 while [ -z "${servername}" ]; do
-	read -r -p "Please enter the URL to the Jamf Pro server (starting with http): " servername
+	read -r -p "Please enter the URL to the Jamf Pro server (starting with https): " servername
 done
 
 ScriptLogging "Checking for client_id"
